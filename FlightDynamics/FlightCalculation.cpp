@@ -139,7 +139,6 @@ double FlightCalculation::getLat(double y){
 	double c = 2 * atan2(sqrt(a), sqrt(1 - a));
 	//	cout << "c : " << c << endl;
 	double distance = R * c;
-	cout << distance << endl;
 
 	return lat;
 }
@@ -213,32 +212,42 @@ void FlightCalculation::updateLatLong(double centerLat, double centerLong, doubl
 
 }
 
-double FlightCalculation::getHeading(double x1, double x2, double z1, double z2){
+double FlightCalculation::getHeading(double x1, double z1, double x2, double z2){
 	double dx = x2 - x1;
+//	double dy = y2 - y1;
+	double deg2rad = M_PI / 180.0;
+	double heading;
+
+//	double arg1 = 450 - atan2(dy, dx);
+//	heading = fmod(arg1, 360.0) * (M_PI / 180.0);
+//	double dx = x2 - x1;
 	double dz = z2 - z1;
 
-	double heading = M_PI / 180 * (atan2(dz, dx) + 90);
+	heading = M_PI / 180 * (atan2(dz, dx) + 90);
 
 	return heading;
 }
 
-double FlightCalculation::getPitch(double x1, double x2, double y1, double y2, double z1, double z2){
+double FlightCalculation::getPitch(double x1, double y1, double z1, double x2, double y2, double z2){
 	double dx = x2 - x1;
 	double dy = y2 - y1;
 	double dz = z2 - z1;
-	double pitch = M_PI / 180 * (-atan2(dy, sqrt(dx * dx + dz * dz)));
+//	double pitch = M_PI / 180 * (-atan2(dy, sqrt(dx * dx + dz * dz)));
+
+//	double arg2 = sqrt(dx*dx + dy*dy);
+	double pitch = atan2(dz, sqrt(dx*dx + dy*dy)) * (M_PI / 180.0);
 
 	return pitch;
 }
 
-double FlightCalculation::getRoll(double y1, double y2, double z1, double z2){
+double FlightCalculation::getRoll(double y1, double z1, double y2, double z2){
 	double dy = y2 - y1;
 	double dz = z2 - z1;
 	double roll = M_PI / 180 * (atan2(dy, dz));
 	return roll;
 }
 
-double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double lat2, double lon2){
+double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double lat2, double lon2, double x1, double y1, double z1, double x2, double y2, double z2){
 	double distance;
 	double RAD2Deg = 180.0 / M_PI;
 	double deg2rad = M_PI / 180.0;
@@ -257,18 +266,28 @@ double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double
 	a = pow(sin(dLat / 2.0), 2.0) + cos(dLat1) * cos(dLat2) * pow(sin(dLong / 2), 2);
 	c = 2 * atan2(sqrt(a), sqrt(1.0 - a));
 	distance = 6378137 * c;
-	cout << "distance : " << distance << endl;
-
-//	double tc1, bearing;
-//	if (sin(lon2 - lon1) < 0)
-//		tc1 = acos((sin(lat2) - sin(lat1) * cos(distance)) / (sin(distance) * cos(lat1)));
-//	else
-//		tc1 = 2 * M_PI - acos((sin(lat2) - sin(lat1) * cos(distance)) / (sin(distance) * cos(lat1)));
+//	cout << "distance : " << distance << endl;
 
 //	bearing = tc1 * 180 / M_PI;
 //	cout << "tc1 : " << tc1 << " bearing : " << bearing << endl;
 
-	return distance;
+	double dt = 1;
+	double dx = x2 - x1;
+	double dy = y2 - y1;
+	double dz = z2 - z1;
+	double dist = sqrt(dx*dx + dy*dy + dz*dz);
+	if (dist <= 0)
+		cout << dist << " less than 0 " << endl;
+
+	double tc1;
+	if (sin(lon2 - lon1) < 0)
+		tc1 = acos((sin(lat2) - sin(lat1) * cos(dist)) / (sin(dist) * cos(lat1)));
+	else
+		tc1 = 2 * M_PI - acos((sin(lat2) - sin(lat1) * cos(dist)) / (sin(dist) * cos(lat1)));
+
+//	cout << tc1 << endl;
+
+	return dist;
 
 	/*
 	IF sin(lon2-lon1)<0
@@ -279,8 +298,8 @@ double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double
 	*/
 }
 
-void FlightCalculation::getVelocity(double x1, double y2, double z1, double x2, double y1, double z2, double &vx1, double &vy1, double &vz1){
-	double vx, vy, vz, dt, dist, dx, dy, dz, ux, uy, uz;
+void FlightCalculation::getVelocity(double x1, double y1, double z1, double x2, double y2, double z2, double &vx1, double &vy1, double &vz1, double dist, double &heading, double &pitch, double &roll){
+	double vx, vy, vz, dt, dx, dy, dz, ux, uy, uz;
 	double RAD2Deg = 180.0 / M_PI;
 	double deg2rad = M_PI / 180.0;
 	dt = 1;
@@ -288,7 +307,6 @@ void FlightCalculation::getVelocity(double x1, double y2, double z1, double x2, 
 	dy = (y2 - y1) / dt;
 	dz = (z2 - z1) / dt;
 
-	dist = sqrt(dx*dx + dy*dy + dz*dz);
 	ux = dx / dist;
 	uy = dy / dist;
 	uz = dz / dist;
@@ -296,14 +314,18 @@ void FlightCalculation::getVelocity(double x1, double y2, double z1, double x2, 
 	vx1 = 235 * ux;
 	vy1 = 235 * uy;
 	vz1 = 235 * uz;
+	
+
 	double arg1 = 450 - atan2(dy, dx);
-	double hdg = fmod(arg1, 360.0) * deg2rad;
-	cout << "heading : " << hdg << endl;
+//	heading = fmod(arg1, 360.0) * deg2rad;
+//	cout << "heading : " << hdg << endl;
+	heading = M_PI / 180 * (atan2(dy, dx) + 90);
 	double arg2 = sqrt(dx*dx + dy*dy);
-	double pitch = atan2(dz, arg2);
-	double roll = M_PI / 180 * (atan2(dy, dz));
-	cout << "roll : " << roll << endl;
-	cout << "pitch : " << pitch << endl;
+	pitch = atan2(dz, arg2);
+	roll = M_PI / 180 * (atan2(dy, dz));
+
+	cout << heading << "  " << pitch << "  " << roll << endl;
+
 
 /*	while (dist > 235) {
 		dist -= 235;
@@ -332,4 +354,15 @@ void FlightCalculation::getVelocity(double x1, double y2, double z1, double x2, 
 		cout << x1 << "  " << y1 << "  " << z1 << "      " << hdg << "      " << pitch << "   " << roll << endl;
 	}
 	*/
+}
+
+void FlightCalculation::qRotation(){
+	double w, x, y, z;
+	gte::Quaternion<double> q(x, y, z, w);
+	
+	double yaw = asin(-2 * (q[x] * q[z] - q[w] * q[y]));
+
+
+	
+
 }

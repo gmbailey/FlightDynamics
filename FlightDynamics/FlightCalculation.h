@@ -13,6 +13,9 @@
 #include <iomanip>
 #include <GeographicLib/LocalCartesian.hpp>
 #include <fstream>
+#include <boost\math\quaternion.hpp>
+#include <GteQuaternion.h>
+#include <GteRotation.h>
 using std::ofstream;
 
 using namespace GeographicLib;
@@ -30,9 +33,10 @@ public:
 	double getvz(double z2, double z1, double dt);
 	double getLat(double y);
 	void updateLatLong(double centerLat, double centerLong, double x, double y, double z, double &newLat, double &newLong);
-	double getHeading(double x1, double x2, double z1, double z2);
-	double getPitch(double x1, double x2, double y1, double y2, double z1, double z2);
-	double getRoll(double y1, double y2, double z1, double z2);
-	double getDistanceToWaypoint(double lat1, double lon1, double lat2, double lon2);
-	void getVelocity(double x1, double x2, double y1, double y2, double z1, double z2, double &vx1, double &vy1, double &vz1);
+	double getHeading(double x1, double zy, double x2, double y2);
+	double getPitch(double x1, double y1, double z1, double x2, double y2, double z2);
+	double getRoll(double y1, double z1, double y2, double z2);
+	double getDistanceToWaypoint(double lat1, double lon1, double lat2, double lon2, double x1, double y1, double z1, double x2, double y2, double z2);
+	void getVelocity(double x1, double y1, double z1, double x2, double y2, double z2, double &vx1, double &vy1, double &vz1, double dist, double &heading, double &pitch, double &roll);
+	void qRotation();
 };
