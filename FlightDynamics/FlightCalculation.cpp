@@ -155,9 +155,16 @@ void FlightCalculation::updateLatLong(double centerLat, double centerLong, doubl
 //	double z = 1200.00;
 	double h;
 
-	Geocentric earth(Constants::WGS84_a(), Constants::WGS84_f());
-	LocalCartesian projection(centerLat - .000235, centerLong - .00246, 0, earth);
-	projection.Reverse(x, y, z, newLat, newLong, h);
+//	Geocentric earth(Constants::WGS84_a(), Constants::WGS84_f());
+//	LocalCartesian projection(centerLat - .000235, centerLong - .00246, 0, earth);
+//	projection.Reverse(x, y, z, newLat, newLong, h);
+
+	Geolocation earth1(6378137, 1 / (298257223563LL) / 1000000000);
+	LCartesian proj1(centerLat, centerLong, 1200, earth1);
+	proj1.Reverse(x, y, z, newLat, newLong, h);
+
+//	cout << h << endl;
+	
 
 /*	bg::model::point<long double, 3, bg::cs::cartesian> p1(x, y, z);
 //	cout << "initial P1: " << bg::dsv(p1) << endl;
@@ -213,17 +220,24 @@ void FlightCalculation::updateLatLong(double centerLat, double centerLong, doubl
 }
 
 double FlightCalculation::getHeading(double x1, double z1, double x2, double z2){
-	double dx = x2 - x1;
+//	double dx = x2 - x1;
 //	double dy = y2 - y1;
-	double deg2rad = M_PI / 180.0;
-	double heading;
+//	double deg2rad = M_PI / 180.0;
+//	double heading;
 
 //	double arg1 = 450 - atan2(dy, dx);
 //	heading = fmod(arg1, 360.0) * (M_PI / 180.0);
-//	double dx = x2 - x1;
-	double dz = z2 - z1;
+	double dx = x1 - x2;
+	double dz = z1 - z2;
+	double heading = atan2(dz, dx);
+//	heading = M_PI / 180 * (atan2(dz, dx) + 90);
 
-	heading = M_PI / 180 * (atan2(dz, dx) + 90);
+
+//	double x, y;
+//	x = cos(lat2) * sin(lon1 - lon2);
+//	y = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon1 - lon2);
+//	double heading = atan2(x, y);
+//	heading = fmod(heading, 360.0);
 
 	return heading;
 }
@@ -235,7 +249,7 @@ double FlightCalculation::getPitch(double x1, double y1, double z1, double x2, d
 //	double pitch = M_PI / 180 * (-atan2(dy, sqrt(dx * dx + dz * dz)));
 
 //	double arg2 = sqrt(dx*dx + dy*dy);
-	double pitch = atan2(dz, sqrt(dx*dx + dy*dy)) * (M_PI / 180.0);
+	double pitch = atan2(sqrt(dz*dz + dx*dx), dy) * (M_PI / 180.0);
 
 	return pitch;
 }
@@ -253,6 +267,7 @@ double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double
 	double deg2rad = M_PI / 180.0;
 //	distance = acos(sin(lat1)*sin(lat2) + cos(lat1) + cos(lat2) + cos(lon1 - lon2));
 //	cout << "distance: " << distance << endl;
+
 
 	double dLat, dLong, dLat1, dLong1, dLat2, dLong2, a, c;
 	dLat1 = lat1*(M_PI / 180);
@@ -287,6 +302,12 @@ double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double
 
 //	cout << tc1 << endl;
 
+	double testX, testY;
+	testX = cos(lat2) * sin(lon1 - lon2);
+	testY = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(lon1 - lon2);
+	double heading = atan2(testX, testY);
+//	cout << heading << endl;
+
 	return dist;
 
 	/*
@@ -298,7 +319,7 @@ double FlightCalculation::getDistanceToWaypoint(double lat1, double lon1, double
 	*/
 }
 
-void FlightCalculation::getVelocity(double x1, double y1, double z1, double x2, double y2, double z2, double &vx1, double &vy1, double &vz1, double dist, double &heading, double &pitch, double &roll){
+void FlightCalculation::getVelocity(double x1, double y1, double z1, double x2, double y2, double z2, double &vx1, double &vy1, double &vz1, double dist, double &heading, double &pitch, double &roll, double prevVx, double prevVy){
 	double vx, vy, vz, dt, dx, dy, dz, ux, uy, uz;
 	double RAD2Deg = 180.0 / M_PI;
 	double deg2rad = M_PI / 180.0;
@@ -311,58 +332,168 @@ void FlightCalculation::getVelocity(double x1, double y1, double z1, double x2, 
 	uy = dy / dist;
 	uz = dz / dist;
 
+	double speed = 235;
+	vz1 = uz * speed;
 	vx1 = 235 * ux;
-	vy1 = 235 * uy;
-	vz1 = 235 * uz;
+	vy1 = speed * uy;
+
+	double acceleration = .047;
+	
+	double vx2, vy2, vz2, vy3, vz3;
+
+	vx2 = prevVx;
+	vy2 = 235 * uy;
+	vz2 = 235 * uz;
+
+	double diff;
+
+	diff = vx1 - prevVx;
+	
+	if (diff >= 2)
+		prevVx += 2;
+	else if (diff <= -2)
+		prevVx += -2;
+	else
+		prevVx += diff;
+
+	vx1 = prevVx;
+
+	diff = vy1 - prevVy;
+	if (diff >= 10)
+		prevVy += 10;
+	else if (diff <= -10) 
+		prevVy += -10;
+	else
+		prevVy += diff;
+
+	vy1 = prevVy;
+
+
+//	roll = asin(relPos.z());
+//	heading = acos((relPos.x() / cos(roll) + 90));
+//	heading = 450 - (atan2( relPos.x(), cos(roll)));
+	//if (relPos.y() < 0) {
+//		heading = M_PI_2 - heading;
+//		cout << "in here " << endl;
+//	}
+	double arg1 = 450 - atan2(dy, dx) * RAD2Deg;
+	heading = fmod(arg1, 360.0) * (M_PI / 180.0);
+//	pitch = atan2(relPos.z(), sqrt(relPos.x() * relPos.x() + relPos.y() * relPos.y()));
+	
+//	heading = ((90 - (int)(atan2(dy, dx)* 180.0 / 3.14159)) + 360) * % 360;
+
+//	double arg1 = atan2(dz, dx) + 90;
+//	heading = (arg1 + 2 * M_PI) * deg2rad;
+//	cout << "heading : " << hdg << endl;
+//	heading = M_PI / 180 * (atan2(dy, dx) + 90);
+	double arg2 = sqrt(dx*dx + dy*dy) * RAD2Deg;
+	pitch = atan2(dz, arg2) * RAD2Deg;
+//	pitch = atan2(dy, sqrt(dz*dz + dx*dx)) * RAD2Deg;
+	pitch = fmod(pitch, 180) * (M_PI / 180.0);
+
+//	pitch = -atan(vy1 / sqrt(vz1 * vz1 + vx1 * vx1));
+
+
+//	roll = atan2(2 * (dy * dz + dx * 1), (dx*dx - dy*dy - dz*dz + 1)) * RAD2Deg;
+//	roll = fmod(roll, 360) * (M_PI / 180.0);
+//	roll = asin(dy);// *RAD2Deg;//450 - atan2(dy, dz) *RAD2Deg;
+	
+//	roll = atan2(dy, dx);
+
+	double arg3 = sqrt(dz*dz + dy*dy) * RAD2Deg;
+	roll = atan2(arg3, dy);
+//	roll = fmod(roll, 360) * (M_PI / 180.0);
+	vz1 = pitch * speed;
 	
 
-	double arg1 = 450 - atan2(dy, dx);
-//	heading = fmod(arg1, 360.0) * deg2rad;
-//	cout << "heading : " << hdg << endl;
-	heading = M_PI / 180 * (atan2(dy, dx) + 90);
-	double arg2 = sqrt(dx*dx + dy*dy);
-	pitch = atan2(dz, arg2);
-	roll = M_PI / 180 * (atan2(dy, dz));
+//	Quaterniond qHeading(cos(heading / 2), 0, 0, -sin(heading / 2));
+//	Quaterniond qPitch(cos(pitch / 2), 0, sin(pitch / 2), 0);
+//	Quaterniond qRoll(cos(roll / 2), sin(roll / 2), 0, 0);
+//	Quaterniond q1 = qHeading * qPitch * qRoll;
+/*
+	enum { eL = 1, eM, eN };
+	/// Rates P, Q, R
+	enum { eP = 1, eQ, eR };
+	/// Velocities U, V, W
+	enum { eU = 1, eV, eW };
+	/// Positions X, Y, Z
+	enum { eX = 1, eY, eZ };
+	/// Euler angles Phi, Theta, Psi
+	enum { ePhi = 1, eTht, ePsi };
+	/// Stability axis forces, Drag, Side force, Lift
+	enum { eDrag = 1, eSide, eLift };
+	/// Local frame orientation Roll, Pitch, Yaw
+	enum { eRoll = 1, ePitch, eYaw };
+	/// Local frame position North, East, Down
+	enum { eNorth = 1, eEast, eDown };
+	/// Locations Radius, Latitude, Longitude
+	enum { eLat = 1, eLong, eRad };
 
-	cout << heading << "  " << pitch << "  " << roll << endl;
+	Vector3d vTargetPos(x2, y2, z2);
+	Vector3d vOrigPos(x1, y1, z1);
+//	Vector3d vTrans = vTargetPos - vOrigPos;
+//	double vecDist = sqrt(vTrans.x() * vTrans.x() +
+//		vTrans.y() * vTrans.y() +
+//		vTrans.z() * vTrans.z());
+	Matrix3d mT(3, 3);
+	double cp, sp, cr, sr, cy, sy;
+	double P, Q, R;
+	P = dist * heading;
+	Q = dist * pitch;
+	R = dist * roll;
+//	Vector3d vRotationRates(ePsi, eTht, ePhi);
+//	Vector3d orientation(heading, pitch, roll);
+//	Vector3d vPQR(P, Q, R);									//angular velocity vector
+//	Vector3d vQt(heading, pitch, roll);								//orientation
+//	Vector3d vUVW;									//velocities
+//	double eTht, ePsi, ePhi;
 
+	double cTht = cos(pitch);
+	double sTht = sin(pitch);
+	double cPhi = cos(roll);
+	double sPhi = sin(roll);
 
-/*	while (dist > 235) {
-		dist -= 235;
-		dx = (x2 - x1) / dt;
-		dy = (y2 - y1) / dt;
-		dz = (z2 - z1) / dt;
+//	vRotationRates(eTht) = vPQR(eQ)*cPhi - vPQR(eR)*sPhi;
+//	if (cTht != 0.0) {
+//		vRotationRates(ePsi) = (vPQR(eQ)*sPhi + vPQR(eR)*cPhi) / cTht;
+//		vRotationRates(ePhi) = vPQR(eP) + vRotationRates(ePsi)*sTht;
+//	}
 
-		ux = dx / dist;
-		uy = dy / dist;
-		uz = dz / dist;
+//	Quaterniond pos1(0, x1, y1, z1);
+//	Quaterniond pos2(0, x2, y2, z2);
+//	double ang = pos1.angularDistance(pos2);
 
-		vx = 235 * ux;
-		vy = 235 * uy;
-		vz = 235 * uz;
+	double  alpha, beta, theta, phi, psi, gamma;
+	double salpha, sbeta, stheta, sphi, spsi, sgamma;
+	double calpha, cbeta, ctheta, cphi, cpsi, cgamma;
+	cphi = cos(phi);   sphi = sin(phi);   // phi, rad
+	ctheta = cos(theta); stheta = sin(theta); // theta, rad
+	cpsi = cos(psi);   spsi = sin(psi);   // psi, rad
 
-		arg1 = 450 - atan2(dy, dx);
-		hdg = fmod(arg1, 360.0) * deg2rad;
-		arg2 = sqrt(dx*dx + dy*dy);
-		pitch = atan2(dz, arg2);
-		roll = M_PI / 180 * (atan2(dy, dz));
+	cp = cos(pitch); sp = sin(pitch);
+	cr = cos(roll);  sr = sin(roll);
+	cy = cos(heading);   sy = sin(heading);
 
-		x1 += vx;
-		y1 += vy;
-		z1 += vz;
+	mT(1, 1) = cp*cy;
+	mT(1, 2) = cp*sy;
+	mT(1, 3) = -sp;
 
-		cout << x1 << "  " << y1 << "  " << z1 << "      " << hdg << "      " << pitch << "   " << roll << endl;
-	}
-	*/
+	mT(2, 1) = sr*sp*cy - cr*sy;
+	mT(2, 2) = sr*sp*sy + cr*cy;
+	mT(2, 3) = sr*cp;
+
+	mT(3, 1) = cr*sp*cy + sr*sy;
+	mT(3, 2) = cr*sp*sy - sr*cy;
+	mT(3, 3) = cr*cp;
+
+*/
 }
 
-void FlightCalculation::qRotation(){
-	double w, x, y, z;
-	gte::Quaternion<double> q(x, y, z, w);
+void FlightCalculation::getNextCoords(double centerLat, double centerLong, double lat, double lon, double &x1, double &y1, double &z1){//, double &x2, double &y2, double &z2){
+	Geocentric earth(Constants::WGS84_a(), Constants::WGS84_f());
+	LocalCartesian projection(centerLat - .000235, centerLong - .00246, 0, earth);
+//	projection.Reverse(x, y, z, newLat, newLong, h);
+	projection.Forward(lat, lon, 1200, x1, y1, z1);
+
 	
-	double yaw = asin(-2 * (q[x] * q[z] - q[w] * q[y]));
-
-
-	
-
 }

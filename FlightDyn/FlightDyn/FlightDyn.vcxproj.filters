@@ -15,28 +15,36 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="flightDynamics.cpp">
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FlightCalculation.cpp">
+    <ClCompile Include="FlightDyn.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Geolocation.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LCartesian.cpp">
+    <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FlightCalculation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Geolocation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="LCartesian.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ResourceCompile Include="FlightDyn.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\..\..\..\..\..\Program Files\AGI\STK 10\bin\AgAsComponents.dll" />
   </ItemGroup>
 </Project>
